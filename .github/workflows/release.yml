@@ -6,10 +6,15 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Tag name (e.g. v0.1.0)'
+      bump:
+        description: 'Version bump type'
         required: false
-        default: ''
+        default: 'patch'
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
       prerelease:
         description: 'Mark as prerelease'
         type: boolean
@@ -24,9 +29,49 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: Install capnp compiler
         run: sudo apt-get update && sudo apt-get install -y capnproto
+
+      - name: Compute next tag (workflow dispatch only)
+        id: bump
+        if: github.event_name == 'workflow_dispatch'
+        run: |
+          git fetch --tags --force
+          latest=$(git tag -l 'v*' --sort=-v:refname | head -n 1)
+          if [ -z "$latest" ]; then
+            latest="v0.0.0"
+          fi
+
+          bump="${{ github.event.inputs.bump }}"
+          IFS='.' read -r major minor patch <<<"${latest#v}"
+
+          case "$bump" in
+            major) major=$((major + 1)); minor=0; patch=0 ;;
+            minor) minor=$((minor + 1)); patch=0 ;;
+            *)     patch=$((patch + 1)) ;;
+          esac
+
+          new_tag="v${major}.${minor}.${patch}"
+          echo "tag=${new_tag}" >> "$GITHUB_OUTPUT"
+          echo "Next tag: ${new_tag}"
+
+      - name: Create tag (workflow dispatch only)
+        if: github.event_name == 'workflow_dispatch'
+        env:
+          TAG: ${{ steps.bump.outputs.tag }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git tag "$TAG"
+          git push origin "$TAG"
+
+      - name: Set release tag
+        run: echo "TAG_NAME=${TAG}" >> "$GITHUB_ENV"
+        env:
+          TAG: ${{ github.event_name == 'workflow_dispatch' && steps.bump.outputs.tag || github.ref_name }}
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
@@ -57,8 +102,8 @@ jobs:
       - name: Create GitHub release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: ${{ github.event.inputs.tag || github.ref_name }}
-          name: ${{ github.event.inputs.tag || github.ref_name }}
+          tag_name: ${{ env.TAG_NAME }}
+          name: ${{ env.TAG_NAME }}
           target_commitish: ${{ github.sha }}
           prerelease: ${{ github.event.inputs.prerelease == 'true' }}
         env:
