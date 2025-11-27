@@ -1,5 +1,6 @@
 #include <stdarg.h>
 #include <stdbool.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -251,4 +252,59 @@ char *dbx_verify_aggregate(DbxHandle *handle, const char *aggregate_type, const 
 
     *error_out = NULL;
     return build_json("{\"function\":\"dbx_verify_aggregate\",\"aggregate_type\":\"%s\",\"aggregate_id\":\"%s\"}", aggregate_type, aggregate_id);
+}
+
+char *dbx_create_snapshot(DbxHandle *handle, const char *aggregate_type, const char *aggregate_id, const char *options_json, char **error_out) {
+    if (should_error(aggregate_type, aggregate_id, error_out)) {
+        return NULL;
+    }
+    if (should_return_null(aggregate_type, aggregate_id)) {
+        *error_out = NULL;
+        return NULL;
+    }
+    if (should_return_bad_json(aggregate_type, aggregate_id)) {
+        *error_out = NULL;
+        return duplicate_string("{\"function\":\"dbx_create_snapshot\",\"broken\": [}");
+    }
+
+    *error_out = NULL;
+    const char *options = options_json != NULL ? options_json : "null";
+    return build_json("{\"function\":\"dbx_create_snapshot\",\"aggregate_type\":\"%s\",\"aggregate_id\":\"%s\",\"options\":%s}", aggregate_type, aggregate_id, options);
+}
+
+char *dbx_list_snapshots(DbxHandle *handle, const char *options_json, char **error_out) {
+    if (should_error(options_json, NULL, error_out)) {
+        return NULL;
+    }
+    if (should_return_null(options_json, NULL)) {
+        *error_out = NULL;
+        return NULL;
+    }
+    if (should_return_bad_json(options_json, NULL)) {
+        *error_out = NULL;
+        return duplicate_string("{\"function\":\"dbx_list_snapshots\",\"broken\": [}");
+    }
+
+    *error_out = NULL;
+    const char *options = options_json != NULL ? options_json : "null";
+    return build_json("{\"function\":\"dbx_list_snapshots\",\"options\":%s}", options);
+}
+
+char *dbx_get_snapshot(DbxHandle *handle, uint64_t snapshot_id, const char *options_json, char **error_out) {
+    (void)handle;
+    if (should_error(options_json, NULL, error_out)) {
+        return NULL;
+    }
+    if (should_return_null(options_json, NULL)) {
+        *error_out = NULL;
+        return NULL;
+    }
+    if (should_return_bad_json(options_json, NULL)) {
+        *error_out = NULL;
+        return duplicate_string("{\"function\":\"dbx_get_snapshot\",\"broken\": [}");
+    }
+
+    *error_out = NULL;
+    const char *options = options_json != NULL ? options_json : "null";
+    return build_json("{\"function\":\"dbx_get_snapshot\",\"snapshot_id\":%llu,\"options\":%s}", (unsigned long long)snapshot_id, options);
 }

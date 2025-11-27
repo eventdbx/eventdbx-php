@@ -12,6 +12,7 @@ final class Client
 {
     private const CDEF = <<<CDEF
     typedef struct DbxHandle DbxHandle;
+    typedef unsigned long long uint64_t;
 
     void dbx_string_free(char* ptr);
 
@@ -27,6 +28,9 @@ final class Client
     char* dbx_patch_event(DbxHandle* handle, const char* aggregate_type, const char* aggregate_id, const char* event_type, const char* patch_json, const char* options_json, char** error_out);
     char* dbx_set_archive(DbxHandle* handle, const char* aggregate_type, const char* aggregate_id, bool archived, const char* options_json, char** error_out);
     char* dbx_verify_aggregate(DbxHandle* handle, const char* aggregate_type, const char* aggregate_id, char** error_out);
+    char* dbx_create_snapshot(DbxHandle* handle, const char* aggregate_type, const char* aggregate_id, const char* options_json, char** error_out);
+    char* dbx_list_snapshots(DbxHandle* handle, const char* options_json, char** error_out);
+    char* dbx_get_snapshot(DbxHandle* handle, uint64_t snapshot_id, const char* options_json, char** error_out);
     CDEF;
 
     private FFI $ffi;
@@ -186,6 +190,42 @@ final class Client
             'dbx_verify_aggregate',
             $aggregateType,
             $aggregateId,
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     */
+    public function createSnapshot(string $aggregateType, string $aggregateId, array $options = []): array
+    {
+        return $this->callJson(
+            'dbx_create_snapshot',
+            $aggregateType,
+            $aggregateId,
+            $this->encode($options),
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     */
+    public function listSnapshots(array $options = []): array
+    {
+        return $this->callJson(
+            'dbx_list_snapshots',
+            $this->encode($options),
+        );
+    }
+
+    /**
+     * @param array<string,mixed> $options
+     */
+    public function getSnapshot(int $snapshotId, array $options = []): array
+    {
+        return $this->callJson(
+            'dbx_get_snapshot',
+            $snapshotId,
+            $this->encode($options),
         );
     }
 

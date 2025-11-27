@@ -6,7 +6,8 @@ use std::{
 
 use eventdbx_client::{
     AggregateSort, AggregateSortField, AppendEventRequest, ClientConfig, CreateAggregateRequest,
-    EventDbxClient, ListAggregatesOptions, ListEventsOptions, PatchEventRequest, PublishTarget,
+    CreateSnapshotRequest, EventDbxClient, GetSnapshotRequest, ListAggregatesOptions,
+    ListEventsOptions, ListSnapshotsOptions, PatchEventRequest, PublishTarget,
     SelectAggregateRequest, SetAggregateArchiveRequest,
 };
 use serde::Deserialize;
@@ -381,6 +382,190 @@ pub extern "C" fn dbx_list_aggregates(
                     .next_cursor
                     .map(Value::String)
                     .unwrap_or(Value::Null),
+            ),
+        ]
+        .into_iter()
+        .collect(),
+    );
+
+    match to_cstring(payload) {
+        Ok(ptr) => ptr,
+        Err(err) => {
+            set_error(error_out, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dbx_create_snapshot(
+    handle: *mut DbxHandle,
+    aggregate_type: *const c_char,
+    aggregate_id: *const c_char,
+    options_json: *const c_char,
+    error_out: *mut *mut c_char,
+) -> *mut c_char {
+    clear_error(error_out);
+    if handle.is_null() {
+        set_error(error_out, "handle is null");
+        return std::ptr::null_mut();
+    }
+    let agg_type = match string_from_ptr(aggregate_type) {
+        Ok(s) => s,
+        Err(err) => {
+            set_error(error_out, err);
+            return std::ptr::null_mut();
+        }
+    };
+    let agg_id = match string_from_ptr(aggregate_id) {
+        Ok(s) => s,
+        Err(err) => {
+            set_error(error_out, err);
+            return std::ptr::null_mut();
+        }
+    };
+    let opts_value = match parse_json(options_json) {
+        Ok(v) => v,
+        Err(err) => {
+            set_error(error_out, err);
+            return std::ptr::null_mut();
+        }
+    };
+
+    let mut request = CreateSnapshotRequest::new(agg_type, agg_id);
+    if let Some(map) = opts_value.as_object() {
+        request.comment = map.get("comment").and_then(Value::as_str).map(|s| s.to_string());
+        request.token = map.get("token").and_then(Value::as_str).map(|s| s.to_string());
+    }
+
+    let client = unsafe { &mut *handle };
+    let response = match client
+        .runtime
+        .block_on(client.client.create_snapshot(request))
+    {
+        Ok(resp) => resp,
+        Err(err) => {
+            set_error(error_out, err.to_string());
+            return std::ptr::null_mut();
+        }
+    };
+
+    let payload = Value::Object(
+        [("snapshot".to_string(), response.snapshot)]
+            .into_iter()
+            .collect(),
+    );
+
+    match to_cstring(payload) {
+        Ok(ptr) => ptr,
+        Err(err) => {
+            set_error(error_out, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dbx_list_snapshots(
+    handle: *mut DbxHandle,
+    options_json: *const c_char,
+    error_out: *mut *mut c_char,
+) -> *mut c_char {
+    clear_error(error_out);
+    if handle.is_null() {
+        set_error(error_out, "handle is null");
+        return std::ptr::null_mut();
+    }
+
+    let opts_value = match parse_json(options_json) {
+        Ok(v) => v,
+        Err(err) => {
+            set_error(error_out, err);
+            return std::ptr::null_mut();
+        }
+    };
+
+    let mut opts = ListSnapshotsOptions::default();
+    if let Some(map) = opts_value.as_object() {
+        opts.aggregate_type = map
+            .get("aggregateType")
+            .or_else(|| map.get("aggregate_type"))
+            .and_then(Value::as_str)
+            .map(|s| s.to_string());
+        opts.aggregate_id = map
+            .get("aggregateId")
+            .or_else(|| map.get("aggregate_id"))
+            .and_then(Value::as_str)
+            .map(|s| s.to_string());
+        opts.version = map.get("version").and_then(Value::as_u64);
+        opts.token = map.get("token").and_then(Value::as_str).map(|s| s.to_string());
+    }
+
+    let client = unsafe { &mut *handle };
+    let response = match client.runtime.block_on(client.client.list_snapshots(opts)) {
+        Ok(resp) => resp,
+        Err(err) => {
+            set_error(error_out, err.to_string());
+            return std::ptr::null_mut();
+        }
+    };
+
+    let payload = Value::Object(
+        [("items".to_string(), response.snapshots)]
+            .into_iter()
+            .collect(),
+    );
+
+    match to_cstring(payload) {
+        Ok(ptr) => ptr,
+        Err(err) => {
+            set_error(error_out, err);
+            std::ptr::null_mut()
+        }
+    }
+}
+
+#[no_mangle]
+pub extern "C" fn dbx_get_snapshot(
+    handle: *mut DbxHandle,
+    snapshot_id: u64,
+    options_json: *const c_char,
+    error_out: *mut *mut c_char,
+) -> *mut c_char {
+    clear_error(error_out);
+    if handle.is_null() {
+        set_error(error_out, "handle is null");
+        return std::ptr::null_mut();
+    }
+
+    let opts_value = match parse_json(options_json) {
+        Ok(v) => v,
+        Err(err) => {
+            set_error(error_out, err);
+            return std::ptr::null_mut();
+        }
+    };
+
+    let mut request = GetSnapshotRequest::new(snapshot_id);
+    if let Some(map) = opts_value.as_object() {
+        request.token = map.get("token").and_then(Value::as_str).map(|s| s.to_string());
+    }
+
+    let client = unsafe { &mut *handle };
+    let response = match client.runtime.block_on(client.client.get_snapshot(request)) {
+        Ok(resp) => resp,
+        Err(err) => {
+            set_error(error_out, err.to_string());
+            return std::ptr::null_mut();
+        }
+    };
+
+    let payload = Value::Object(
+        [
+            ("found".to_string(), Value::Bool(response.found)),
+            (
+                "snapshot".to_string(),
+                response.snapshot.unwrap_or(Value::Null),
             ),
         ]
         .into_iter()

@@ -54,6 +54,9 @@ All client methods return associative arrays decoded from the JSON responses:
 - `apply` / `patch`: `{ event: mixed }`
 - `archive` / `restore`: `{ aggregate: mixed }`
 - `verify`: `{ merkleRoot: string }`
+- `createSnapshot`: `{ snapshot: mixed }`
+- `listSnapshots`: `{ items: [...snapshot rows...] }`
+- `getSnapshot`: `{ found: bool, snapshot: mixed }`
 
 ### Requirements
 

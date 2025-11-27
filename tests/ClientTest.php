@@ -141,4 +141,37 @@ final class ClientTest extends TestCase
 
         $client->apply('order', '123', 'created', ['infinite' => INF]);
     }
+
+    public function testCreateSnapshotReturnsDecodedResponse(): void
+    {
+        $client = $this->createClient();
+
+        $result = $client->createSnapshot('order', '123', ['comment' => 'checkpoint']);
+
+        $this->assertSame('dbx_create_snapshot', $result['function']);
+        $this->assertSame('order', $result['aggregate_type']);
+        $this->assertSame('123', $result['aggregate_id']);
+        $this->assertSame(['comment' => 'checkpoint'], $result['options']);
+    }
+
+    public function testListSnapshotsReturnsDecodedResponse(): void
+    {
+        $client = $this->createClient();
+
+        $result = $client->listSnapshots(['aggregateType' => 'order', 'version' => 5]);
+
+        $this->assertSame('dbx_list_snapshots', $result['function']);
+        $this->assertSame(['aggregateType' => 'order', 'version' => 5], $result['options']);
+    }
+
+    public function testGetSnapshotReturnsDecodedResponse(): void
+    {
+        $client = $this->createClient();
+
+        $result = $client->getSnapshot(42, ['token' => 'demo']);
+
+        $this->assertSame('dbx_get_snapshot', $result['function']);
+        $this->assertSame(42, $result['snapshot_id']);
+        $this->assertSame(['token' => 'demo'], $result['options']);
+    }
 }
