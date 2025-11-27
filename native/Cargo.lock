@@ -307,7 +307,8 @@ checksum = "edd0f118536f44f5ccd48bcb8b111bdc3de888b58c74639dfb034a357d0f206d"
 [[package]]
 name = "eventdbx-client"
 version = "1.2.1"
-source = "git+ssh://git@github.com/eventdbx/eventdbx-rs.git#4d95615ab6a087c01eae1830e2f7a398ae546fcd"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ad5509564171e79e8b9615971d8a08240de56360d7fd0588047dd0e6c996f079"
 dependencies = [
  "capnp",
  "capnp-futures",
