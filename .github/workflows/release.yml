@@ -25,6 +25,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      - name: Install capnp compiler
+        run: sudo apt-get update && sudo apt-get install -y capnproto
+
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
